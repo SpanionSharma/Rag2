@@ -45,6 +45,7 @@ def classifier_node(state: AgentState):
     1. "greeting": Casual greetings or introductions.
     2. "inquiry": Questions about pricing, features, or policies of AutoStream.
     3. "lead": The user expresses strong interest in signing up, trying the Pro plan, or getting started.
+    4. "general": Any other general questions, small talk, or topics not related to AutoStream.
     
     User Message: "{last_message}"
     
@@ -55,8 +56,8 @@ def classifier_node(state: AgentState):
     intent = response.content.strip().lower()
     
     # Validation against allowed types
-    if intent not in ["greeting", "inquiry", "lead"]:
-        intent = "inquiry"  # Default fallback
+    if intent not in ["greeting", "inquiry", "lead", "general"]:
+        intent = "general"  # Default fallback to general awareness
         
     return {"intent": intent, "next_node": intent}
 
@@ -90,7 +91,30 @@ def rag_node(state: AgentState):
 def casual_responder_node(state: AgentState):
     """Handles greetings."""
     last_message = state["messages"][-1].content
-    prompt = f"The user said '{last_message}'. Provide a friendly, brief greeting and ask how you can help them with AutoStream today."
+    prompt = f"The user said '{last_message}'. Provide a friendly, brief greeting and ask how you can help them with AutoStream today. Keep it short."
+    response = llm.invoke(prompt)
+    return {"messages": [AIMessage(content=response.content)]}
+
+def general_responder_node(state: AgentState):
+    """Handles general knowledge and small talk using the LLM's base knowledge."""
+    last_message = state["messages"][-1].content
+    history = "\n".join([f"{m.type}: {m.content}" for m in state["messages"][:-1]])
+    
+    prompt = f"""
+    You are an AI Assistant for AutoStream, but you also have broad general knowledge.
+    The user is asking a general question or engaging in small talk.
+    
+    Conversation History:
+    {history}
+    
+    User Message: "{last_message}"
+    
+    Guidelines:
+    - Answer the question accurately using your general knowledge.
+    - If appropriate, subtly bring the conversation back to how AutoStream (an AI video tool) might be relevant, but don't force it.
+    - Be helpful, polite, and conversational.
+    """
+    
     response = llm.invoke(prompt)
     return {"messages": [AIMessage(content=response.content)]}
 
@@ -157,6 +181,7 @@ workflow.add_node("classifier", classifier_node)
 workflow.add_node("greeting", casual_responder_node)
 workflow.add_node("inquiry", rag_node)
 workflow.add_node("lead", lead_capture_node)
+workflow.add_node("general", general_responder_node)
 
 workflow.set_entry_point("classifier")
 
@@ -166,13 +191,15 @@ workflow.add_conditional_edges(
     {
         "greeting": "greeting",
         "inquiry": "inquiry",
-        "lead": "lead"
+        "lead": "lead",
+        "general": "general"
     }
 )
 
 workflow.add_edge("greeting", END)
 workflow.add_edge("inquiry", END)
-workflow.add_edge("lead", END) # Lead capture node can loop or end. For simplicity, we end after response.
+workflow.add_edge("lead", END)
+workflow.add_edge("general", END)
 
 # Use memory for state persistence
 memory = MemorySaver()

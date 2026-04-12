@@ -4,18 +4,20 @@
 "name": "Basic Plan",
 "price": "$29/month",
 "features": [
-"10 videos/month",
-"720p resolution"
-]
+      "10 videos/month",
+      "720p resolution",
+      "1 device allowed"
+    ]
 },
 "pro": {
 "name": "Pro Plan",
 "price": "$79/month",
 "features": [
-"Unlimited videos",
-"4K resolution",
-"AI captions"
-]
+      "Unlimited videos",
+      "4K resolution",
+      "AI captions",
+      "5 devices allowed"
+    ]
 }
 },
 "policies": {
